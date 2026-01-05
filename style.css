@@ -589,3 +589,10 @@ a {
 #download-pdf:hover {
   background: #b08c28;
 }
+
+.preco {
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #2aa47e;
+}

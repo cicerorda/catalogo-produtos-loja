@@ -493,14 +493,25 @@ function exibirProdutos(lista) {
 
     const caminhoImagem = encontrarImagem(produto.Referencia);
 
+    const precoFormatado = produto.Preco
+  ? produto.Preco.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL"
+    })
+  : "Sob consulta";
+
     card.innerHTML = `
       <div class="image-container">
         <img src="${caminhoImagem}" alt="Imagem do produto"
-          onerror="console.error('❌ Imagem não encontrada:', this.src); this.src='${URL_SEM_IMAGEM}?updatedAt=1745112243066'">
+          onerror="this.src='${URL_SEM_IMAGEM}'">
       </div>
+
       <div class="container">
         <h5>${produto.Referencia || "Sem Referência"}</h5>
         <p>${produto.Descricao || "Sem Descrição"}</p>
+
+        <p class="preco">${precoFormatado}</p>
+
         <h6>Categoria: ${produto.Categoria || "Sem Categoria"}</h6>
       </div>
     `;
