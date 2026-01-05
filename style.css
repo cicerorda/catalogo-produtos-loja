@@ -1,0 +1,591 @@
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
+}
+
+body {
+  background-color: #333333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding-top: 60px; /* Ajuste conforme a altura do header */
+}
+
+/* 🔶 Barra de Navegação */
+.navbar {
+  width: 100%; /* Ocupa toda a largura */
+  background-color: #952730; /* Mantém a cor de fundo */
+  padding: 1em;
+  text-align: center;
+  position: fixed; /* Mantém fixo no topo */
+  top: 0; /* Fixa no topo */
+  left: 0; /* Começa do canto esquerdo */
+  right: 0; /* Estende até o canto direito */
+  z-index: 1000; /* Garante que fique acima de outros elementos */
+}
+
+.navbar input {
+  width: 100%;
+  max-width: 500px;
+  padding: 10px;
+  border-radius: 20px;
+  border: 1px solid #ddd;
+  font-size: 16px;
+  text-align: center;
+}
+
+/* 🔹 Container dos Filtros */
+#buttons {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  background-color: #222; /* Fundo escuro */
+  padding: 15px 0;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+/* 🔹 Botões de Filtro */
+.button-value {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: color 0.3s ease-in-out;
+  position: relative;
+}
+
+/* 🔹 Adicionando separadores `|` entre os filtros */
+.button-value:not(:last-child)::after {
+  content: "|";
+  color: #ffffff;
+  margin-left: 15px;
+  opacity: 0.5;
+}
+
+/* 🔹 Efeito de Hover */
+.button-value:hover {
+  color: #d4af37; /* Cor dourada */
+}
+
+/* 🔹 Botão Ativo */
+.button-value.active {
+  color: #d4af37;
+}
+
+/* 🔶 Grid de Produtos */
+#products {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+  gap: 2em;
+  padding: 2em;
+  width: 90%;
+  max-width: 1200px;
+  justify-items: center;
+}
+
+/* 🔹 Card de Produto */
+.card {
+  background-color: #ffffff;
+  width: 100%;
+  max-width: 280px;
+  padding: 1em;
+  border-radius: 10px;
+  box-shadow: 0px 5px 20px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease-in-out;
+}
+
+.card:hover {
+  transform: scale(1.05);
+  box-shadow: 0px 5px 25px rgba(255, 255, 255, 0.2); /* Luz mais intensa */
+  transition: 0.3s ease-in-out;
+}
+
+/* 🔹 Imagem do Produto */
+.image-container {
+  text-align: center;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  border-radius: 5px;
+}
+
+.image-container img {
+  width: 100%;
+  height: 160px;
+  object-fit: contain;
+  background-color: #ffffff;
+}
+
+/* 🔹 Texto do Produto */
+.container h5 {
+  font-weight: 500;
+  font-size: 16px;
+  margin-top: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* 🔹 Preço do Produto */
+.container h6 {
+  font-size: 13px;
+  color: #444;
+  font-weight: bold;
+  margin-top: 5px;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.2); /* Sombra suave */
+}
+
+/* 🔶 Botão "Adicionar ao Carrinho" */
+.button-cart {
+  display: block;
+  width: 100%;
+  background-color: #2aa47e;
+  color: white;
+  padding: 10px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.button-cart:hover {
+  background-color: #238c6b;
+}
+
+.mensagem-nenhum-produto {
+  color: #ffffff; /* Texto branco */
+  font-size: 15px; /* Tamanho um pouco maior */
+  text-align: center; /* Centraliza o texto */
+  margin-top: 20px; /* Espaçamento superior */
+  text-transform: uppercase;
+  font-family: "Poppins", sans-serif; /* Fonte padrão */
+}
+
+/* 🔹 Estilos da Paginação */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap; /* Permite quebra de linha */
+  margin-top: 20px;
+}
+
+.pagina-btn {
+  background-color: #444;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  margin: 5px;
+  font-size: 16px;
+  min-width: 40px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.pagina-btn:hover {
+  background-color: #d4af37;
+}
+
+.pagina-btn.active {
+  background-color: #952730;
+}
+/* 🔹 Estilização dos botões de paginação */
+#pagination {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 20px;
+}
+
+.pagina-btn {
+    background-color: #444;
+    border: 1px solid #ccc;
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.3s;
+    border-radius: 5px;
+}
+
+.pagina-btn:hover {
+    background-color: #d4af37;
+    color: white;
+}
+
+.pagina-btn.active {
+    background-color: #952730;
+    color: white;
+    border: none;
+}
+
+/* 🔹 Ajuste especial para os botões de navegação ("⟨" e "⟩") */
+.pagina-btn:first-child, .pagina-btn:last-child {
+    font-weight: bold;
+    background-color: #444;
+}
+
+.pagina-btn:first-child.active, .pagina-btn:last-child.active {
+  font-weight: bold;
+  background-color: #952730;
+}
+
+* {
+  padding: 0;
+  margin: 0;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
+}
+
+/* 🔹 Estilização do Filtro de Categorias */
+.filter-container {
+  width: 90%;
+  max-width: 400px;
+  background-color: #222;
+  padding: 15px;
+  margin: 20px 0;
+  border-radius: 10px;
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  padding: 10px;
+  background-color: #444;
+  border-radius: 5px;
+}
+
+.filter-title {
+  font-size: 16px;
+  color: white;
+  text-shadow: 4px 4px 6px rgba(0, 0, 0, 0.6);
+  font-weight: bold;
+}
+
+.filter-icon {
+  width: 16px;
+  transition: transform 0.3s ease-in-out;
+}
+
+.filter-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s ease-in-out;
+}
+
+.filter-content.active {
+  max-height: 300px; /* Ajuste conforme necessário */
+}
+
+#search-category {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+}
+
+#category-list input[type="checkbox"] {
+  display: none;
+}
+
+#category-list label {
+  display: block;
+  padding: 8px;
+  cursor: pointer;
+  color: white;
+  font-size: 16px;
+  border-radius: 5px;
+  transition: background 0.3s ease-in-out;
+}
+
+#category-list label:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 🔹 Quando o checkbox estiver marcado */
+#category-list input[type="checkbox"]:checked + label {
+  background: #d4af37; /* Cor dourada */
+  color: black;
+  font-weight: bold;
+}
+
+.pagina-btn {
+  background-color: #444;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  margin: 5px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.pagina-btn:hover {
+  background-color: #d4af37;
+}
+
+.pagina-btn.active {
+  background-color: #952730;
+}
+
+:root {
+  --main-radius: 5px;
+  --main-padding: 5px;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+}
+
+.container-layout {
+  display: grid;
+  height: 100vh;
+  grid-template-columns: 250px 1fr 1fr 1fr; /* Sidebar menor */
+  grid-template-rows: 0.2fr 1.5fr 1.2fr 0.8fr;
+  grid-template-areas:
+    "nav nav nav nav"
+    "sidebar main main main"
+    "sidebar content1 content2 content3"
+    "sidebar footer footer footer";
+}
+
+
+nav {
+  grid-area: nav;
+  border-radius: var(--main-radius);
+  padding-top: var(--main-padding);
+}
+
+main {
+  grid-area: main;
+  border-radius: var(--main-radius);
+  padding-top: var(--main-padding);
+}
+
+#sidebar {
+  grid-area: sidebar;
+  border-radius: var(--main-radius);
+  padding-top: var(--main-padding);
+}
+
+#content1 {
+  grid-area: content1;
+  border-radius: var(--main-radius);
+  padding-top: var(--main-padding);
+}
+
+#content2 {
+  grid-area: content2;
+  border-radius: var(--main-radius);
+  padding-top: var(--main-padding);
+}
+
+#content3 {
+  grid-area: content3;
+  border-radius: var(--main-radius);
+  padding-top: var(--main-padding);
+}
+
+footer {
+  grid-area: footer;
+  border-radius: var(--main-radius);
+  padding-top: var(--main-padding);
+}
+
+a {
+  text-align: center;
+  display: block;
+  font-family: inherit;
+  text-decoration: none;
+  font-weight: bold;
+  margin: 1rem;
+}
+
+#category-list {
+  max-height: 200px; /* Define a altura máxima para a lista */
+  overflow-y: auto; /* Ativa a rolagem vertical */
+  scrollbar-width: thin; /* Ajusta a largura da barra de rolagem para Firefox */
+  scrollbar-color: #d4af37 #222; /* Personaliza a cor no Firefox */
+}
+
+/* Estiliza a barra de rolagem no Chrome, Edge e Safari */
+#category-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+#category-list::-webkit-scrollbar-track {
+  background: #222; /* Fundo da barra */
+  border-radius: 10px;
+}
+
+#category-list::-webkit-scrollbar-thumb {
+  background-color: #d4af37; /* Cor dourada */
+  border-radius: 10px;
+}
+
+#category-list::-webkit-scrollbar-thumb:hover {
+  background-color: #b08c28; /* Cor dourada mais escura no hover */
+}
+
+@media only screen and (max-width: 768px) {
+  #sidebar {
+    width: 0;
+    overflow: hidden;
+    transition: width 0.3s ease-in-out;
+  }
+
+  #sidebar.active {
+    width: 250px; /* Mostra o sidebar ao clicar */
+  }
+
+  .container-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    grid-template-areas:
+      "nav"
+      "main"
+      "footer";
+  }
+}
+
+.cart-sidebar {
+  position: fixed;
+  top: 60px; /* Para não cobrir o header */
+  right: 0;
+  width: 300px;
+  height: calc(100vh - 60px);
+  background: #222;
+  color: white;
+  padding: 20px;
+  box-shadow: -3px 0px 10px rgba(0, 0, 0, 0.3);
+  overflow-y: auto;
+}
+
+.cart-sidebar h2 {
+  font-size: 18px;
+  margin-bottom: 15px;
+  text-align: center;
+  color: #5c5c5c; /* Cinza claro */
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6); /* Sombra escura para destacar */
+}
+
+#cart-items {
+  list-style: none;
+  padding: 0;
+}
+
+#cart-items li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #333;
+  color: white;
+  text-shadow: 4px 4px 6px rgba(0, 0, 0, 0.6);
+  padding: 10px;
+  margin-bottom: 5px;
+  border-radius: 5px;
+}
+
+#cart-items input {
+  width: 50px;
+  text-align: center;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+  margin-right: 5px;
+}
+
+#cart-items button {
+  background: red;
+  border: none;
+  color: white;
+  padding: 5px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.cart-footer {
+  margin-top: 15px;
+  text-align: center;
+}
+
+#clear-cart {
+  background: #d4af37;
+  color: black;
+  border: none;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+  padding: 10px;
+  width: 100%;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+#clear-cart:hover {
+  background: #b08c28;
+}
+
+/* 🔹 Alinha a quantidade e o botão na mesma linha */
+.quantidade-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.quantidade-container label {
+  font-size: 14px;
+  color: #444;
+  font-weight: bold;
+}
+
+.quantidade-container input {
+  width: 50px;
+  padding: 5px;
+  text-align: center;
+  border-radius: 5px;
+  border: 1px solid #ddd;
+}
+
+/* 🔹 Ajusta o botão ao lado da quantidade */
+.quantidade-container .button-cart {
+  background-color: #2aa47e;
+  color: white;
+  border: none;
+  padding: 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 0.3s;
+}
+
+.quantidade-container .button-cart:hover {
+  background-color: #238c6b;
+}
+
+#download-pdf {
+  background: #d4af37;
+  color: black;
+  border: none;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+  padding: 10px;
+  width: 100%;
+  cursor: pointer;
+  border-radius: 5px;
+  margin-top: 10px;
+}
+
+#download-pdf:hover {
+  background: #b08c28;
+}

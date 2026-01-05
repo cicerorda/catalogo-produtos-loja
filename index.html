@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo de Produtos</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container-layout">
+        <!--  Barra de Navegação -->
+        <div class="navbar">
+            <input type="search" id="search-input" placeholder="Buscar produto..." onkeyup="atualizarProdutos()">
+        </div>
+
+    <div id="sidebar">
+        <!--  Filtro de Categorias (Dropdown) -->
+        <div class="filter-container">
+            <div class="filter-header">
+                <span class="filter-title"> 🔽 Categorias </span>
+            </div>
+          
+            <div class="filter-content" id="category-filter">
+                <input type="text" id="search-category" placeholder="Buscar categoria..." onkeyup="filtrarCategorias()">
+                <ul id="category-list"></ul>
+            </div>
+        </div>
+        <button id="download-pdf" type="button">📥 Baixar Produtos</button>
+        <!--<h2>🛒 Lista de Compras</h2>-->
+        <ul id="cart-items"></ul>
+        <div class="cart-footer">
+            <!--<button id="download-csv">📥 Baixar CSV</button>
+            <button id="clear-cart">🗑 Limpar Lista</button>-->
+        </div>
+    </div>
+
+    <main>
+        <!--  Lista de Produtos -->
+        <div id="products"></div>
+    </main>
+    <footer>
+        <!--  Paginação -->
+        <div id="pagination" class="pagination"></div>
+    </footer>
+        </div>
+        <!--  Scripts -->
+        <script src="js/jspdf.umd.min.js"></script>
+        <script src="script.js"></script>
+</body>
+</html>
