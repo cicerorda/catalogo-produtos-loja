@@ -40,8 +40,6 @@ for row in ws.iter_rows(min_row=header_row + 1, values_only=True):
         if isinstance(preco_raw, str):
             preco = float(
                 re.sub(r"[R$\s]", "", preco_raw)
-                .replace(".", "")
-                .replace(",", ".")
             )
         else:
             preco = float(preco_raw)
