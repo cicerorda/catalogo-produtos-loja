@@ -1,15 +1,19 @@
 let produtos = [];
 let paginaAtual = 1;
-const itensPorPagina = 27;
-let categoriasUnicas = new Set();
+const itensPorPagina = 25;
 let categoriasSelecionadas = new Set();
 let termoBusca = "";
 let grupoAtual = 1;
 const botoesPorGrupo = 10;
 let totalPaginas = 0;
+let categoriasMap = new Map();
+const CATEGORIA_COMPONENTES = "COMPONENTES";
 
 let listaImagens = [];
 let mapaImagemPorNomeLimpo = new Map(); // 🆕 mapa rápido nome → url
+let itensExcluidosDoDownload = new Set(
+  JSON.parse(localStorage.getItem("itensExcluidosDoDownload") || "[]")
+);
 
 const BASE_IMAGEKIT_URL = "https://ik.imagekit.io/t7590uzhp/imagens/";
 const URL_SEM_IMAGEM = "https://ik.imagekit.io/t7590uzhp/imagens/sem-imagem_Ga_BH1QVQo.jpg";
@@ -24,6 +28,9 @@ let listaFiltradaSemDuplicatas = []; // filtrado + 1 por imagem
 
 
 console.log("✅ script.js foi carregado!");
+
+localStorage.removeItem("itensExcluidosDoDownload");
+itensExcluidosDoDownload.clear();
 
 function gerarVariantesComCache(ref) {
   if (cacheVariantes.has(ref)) return cacheVariantes.get(ref);
@@ -88,19 +95,6 @@ function gerarVariantes(ref) {
     }
   }
 
-  // 🔧 CASO: E18440.07.00 → gerar E18440.00 (mesmo padrão da imagem e1844000)
-    const m2 = ref.match(/^E(\d{5})\.(\d{2})\.(\d{2})$/i);
-    if (m2) {
-      const bloco1 = m2[1]; // 18440
-      const bloco2 = m2[3]; // 00
-
-      // E18440.00
-      const refSemBlocoIntermediario = `E${bloco1}.${bloco2}`;
-      variantes.add(limparTexto(refSemBlocoIntermediario)); // e1844000
-      variantes.add(refSemBlocoIntermediario.toLowerCase());
-      variantes.add(`e${bloco1}${bloco2}`);
-    }
-
   // 🔧 NOVO CASO: tratar E0xxxxx.xx → gerar variantes sem o zero depois do E
   const m = ref.match(/^E0(\d{5})\.(\d{2})/i);
   if (m) {
@@ -118,49 +112,24 @@ function gerarVariantes(ref) {
 function encontrarImagem(ref) {
   if (!ref) return URL_SEM_IMAGEM;
 
-  // Cache: mesma referência → mesma URL
   if (cacheImagemPorRef.has(ref)) {
     return cacheImagemPorRef.get(ref);
   }
 
   const variantes = gerarVariantesComCache(ref);
-  let urlEncontrada = URL_SEM_IMAGEM;
 
   for (const v of variantes) {
-    const url = mapaImagemPorNomeLimpo.get(v); // consulta no Map
+    const url = mapaImagemPorNomeLimpo.get(v);
     if (url) {
-      urlEncontrada = url;
-      break;
+      cacheImagemPorRef.set(ref, url);
+      return url;
     }
   }
 
-  cacheImagemPorRef.set(ref, urlEncontrada);
-  return urlEncontrada;
+  // 🚨 NUNCA tenta montar URL manual
+  cacheImagemPorRef.set(ref, URL_SEM_IMAGEM);
+  return URL_SEM_IMAGEM;
 }
-
-fetch("imagens.json")
-  .then(res => {
-    console.log("Resposta bruta imagens.json:", res);
-    return res.json();
-  })
-  .then(data => {
-    console.log("✔️ JSON de imagens carregado com sucesso:", data);
-  })
-  .catch(err => {
-    console.error("❌ Erro ao carregar imagens.json:", err);
-  });
-
-fetch("produtos.json")
-  .then(res => {
-    console.log("Resposta bruta produtos.json:", res);
-    return res.json();
-  })
-  .then(data => {
-    console.log("✔️ JSON de produtos carregado com sucesso:", data);
-  })
-  .catch(err => {
-    console.error("❌ Erro ao carregar produtos.json:", err);
-  });
 
 let imagensCarregadas = false;
 let produtosCarregados = false;
@@ -190,17 +159,39 @@ fetch("imagens.json")
   })
   .catch(err => console.error("❌ Erro ao carregar imagens.json:", err));
 
+function processarCategoria(categoriaRaw) {
+  if (!categoriaRaw) return null;
+
+  const primeira = categoriaRaw.split(",")[0].trim();
+  const partes = primeira.split("_");
+
+  const codigoSub = partes.slice(0, 3).join("_"); // 30_40_010
+  const codigoCat = partes.slice(0, 2).join("_"); // 30_40
+
+  return {
+    codigo: codigoSub,
+    codigoCategoria: codigoCat,
+    nomeCategoria: MAPA_CATEGORIAS[codigoCat] || codigoCat
+  };
+}
+
 fetch("produtos.json")
   .then(res => res.json())
-  .then(produtosData => {
-    produtos = produtosData;
+  .then(data => {
+
+    produtos = data;
+
+    console.log("📦 Produtos carregados:", produtos.length);
+
+    categoriasMap.clear();
 
     produtos.forEach(produto => {
-      if (produto.Categoria) {
-        const partes = produto.Categoria.split("_");
-        const categoriaLimpa = partes[partes.length - 1];
-        produto.CategoriaLimpa = categoriaLimpa;
-        categoriasUnicas.add(categoriaLimpa);
+      if (!produto.Categoria) return;
+
+      const nome = produto.Categoria;
+
+      if (!categoriasMap.has(nome)) {
+        categoriasMap.set(nome, new Set());
       }
     });
 
@@ -210,9 +201,9 @@ fetch("produtos.json")
     if (imagensCarregadas) {
       atualizarProdutos();
     }
-  })
-  .catch(err => console.error("❌ Erro ao carregar produtos.json:", err));
 
+  })
+  .catch(err => console.error("❌ Erro ao carregar produtos:", err));
 
 function processarNomeImagem(nome) {
     const nomeOriginal = nome.toLowerCase();
@@ -229,135 +220,171 @@ function processarNomeImagem(nome) {
     return nomeLimpo;
 }
 
-// 🔹 Criar lista de categorias com checkboxes invisíveis e clique no nome
 function criarListaDeCategorias() {
-    const listaCategorias = document.getElementById("category-list");
-    listaCategorias.innerHTML = "";
+  const listaCategorias = document.getElementById("category-list");
+  listaCategorias.innerHTML = "";
 
-    categoriasUnicas.forEach(categoria => {
-        const item = document.createElement("li");
+  categoriasMap.forEach((_, nome) => {
 
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.classList.add("categoria-checkbox");
-        checkbox.value = categoria;
-        checkbox.checked = categoriasSelecionadas.has(categoria);
+    const li = document.createElement("li");
+    li.classList.add("categoria");
 
-        const label = document.createElement("label");
-        label.textContent = categoria;
-        label.addEventListener("click", () => {
-            checkbox.checked = !checkbox.checked;
-            atualizarFiltroCategorias();
-        });
+    li.innerHTML = `
+      <label>
+        <input
+          type="checkbox"
+          class="categoria-checkbox"
+          value="${nome}"
+        >
+        ${nome}
+      </label>
+    `;
 
-        item.appendChild(checkbox);
-        item.appendChild(label);
-        listaCategorias.appendChild(item);
+    listaCategorias.appendChild(li);
+  });
+
+  // evento de mudança
+  document.querySelectorAll(".categoria-checkbox").forEach(cb => {
+    cb.addEventListener("change", () => {
+      paginaAtual = 1;
+      atualizarProdutos();
     });
-
-    // Adiciona um único evento para toda a lista de categorias
-    listaCategorias.addEventListener("change", atualizarFiltroCategorias);
+  });
 }
 
-// Atualiza a lista de categorias selecionadas
-function atualizarFiltroCategorias() {
-    categoriasSelecionadas = new Set(
-        [...document.querySelectorAll(".categoria-checkbox:checked")].map(cb => cb.value)
+function atualizarEstadoCategorias() {
+  document.querySelectorAll(".categoria").forEach(cat => {
+    const nome = cat.querySelector(".categoria-nome");
+    const subs = cat.querySelectorAll(".subcategoria-item");
+    const checkboxes = cat.querySelectorAll(".categoria-checkbox");
+
+    const marcadas = [...checkboxes].filter(cb => cb.checked);
+
+    // Nome só fica amarelo se TODAS subcategorias estiverem marcadas
+    nome.classList.toggle(
+      "ativa",
+      marcadas.length === checkboxes.length && checkboxes.length > 0
     );
-    paginaAtual = 1;
-    atualizarProdutos();
+
+    // Cada subcategoria controla seu próprio destaque
+    subs.forEach(li => {
+      const cb = li.querySelector("input");
+      li.classList.toggle("ativa", cb.checked);
+    });
+  });
 }
 
-// 🔹 Atualiza a seleção de categorias e recarrega produtos
-function toggleCategoria(categoria, selecionado) {
-    selecionado ? categoriasSelecionadas.add(categoria) : categoriasSelecionadas.delete(categoria);
-    paginaAtual = 1;
-    atualizarProdutos();
+function selecionarCategoriaCompleta(nomeCategoria) {
+  const subcategorias = categoriasMap.get(nomeCategoria);
+  if (!subcategorias) return;
+
+  const checkboxes = [...document.querySelectorAll(".categoria-checkbox")];
+
+  const todasMarcadas = checkboxes
+    .filter(cb => subcategorias.has(cb.value))
+    .every(cb => cb.checked);
+
+  checkboxes.forEach(cb => {
+    if (subcategorias.has(cb.value)) {
+      cb.checked = !todasMarcadas;
+    }
+  });
+
+  paginaAtual = 1;
+  grupoAtual = 1;
+  atualizarProdutos();
 }
 
 function obterProdutosFiltrados() {
-    return produtos
-        .filter(p =>
-            categoriasSelecionadas.size === 0 ||
-            categoriasSelecionadas.has(p.CategoriaLimpa)
-        )
-        .filter(p => {
-            const ref = String(p.Referencia ?? "").toLowerCase();
-            const desc = String(p.Descricao ?? "").toLowerCase();
-            const termo = termoBusca.toLowerCase().trim();
+  const filtrarComponentes = categoriasSelecionadas.has("COMPONENTES");
 
-            if (!termo) return true;
+  return produtos.filter(produto => {
 
-            return ref.includes(termo) || desc.includes(termo);
-        });
+    // 🔹 REGRA COMPONENTES (invertida)
+    const ehComponente = produto.Descricao?.toUpperCase().includes("COMP.");
+
+    if (!filtrarComponentes && ehComponente) {
+      return false; // remove componentes quando NÃO marcado
+    }
+
+    // 🔹 REGRA CATEGORIA (normal)
+    const passaCategoria =
+      categoriasSelecionadas.size === 0 ||
+      categoriasSelecionadas.has(produto.Categoria);
+
+    // 🔹 REGRA BUSCA
+    const passaBusca =
+      !termoBusca ||
+      limparTexto(produto.Referencia).includes(limparTexto(termoBusca)) ||
+      limparTexto(produto.Descricao).includes(limparTexto(termoBusca));
+
+    return passaCategoria && passaBusca;
+  });
 }
 
-// 🔹 Atualizar produtos e paginação
+
 function atualizarProdutos() {
-  // 1) aplica filtros (categoria + busca)
+  categoriasSelecionadas.clear();
+
+  document
+    .querySelectorAll(".categoria-checkbox:checked")
+    .forEach(cb => categoriasSelecionadas.add(cb.value));
+
+  paginaAtual = 1;
+
   listaFiltradaAtual = obterProdutosFiltrados();
 
-  // 2) remove duplicados por URL de imagem na lista inteira filtrada
   const urlsVistas = new Set();
-  listaFiltradaSemDuplicatas = [];
+  listaFiltradaSemDuplicatas = listaFiltradaAtual.filter(p => {
+    const url = encontrarImagem(p.Referencia);
+    if (urlsVistas.has(url)) return false;
+    urlsVistas.add(url);
+    return true;
+  });
 
-  for (const produto of listaFiltradaAtual) {
-    const url = encontrarImagem(produto.Referencia);
-
-    if (!urlsVistas.has(url)) {
-      urlsVistas.add(url);
-      listaFiltradaSemDuplicatas.push(produto);
-    }
-  }
-
-  // 3) calcula paginação em cima da lista SEM duplicatas
-  totalPaginas = Math.ceil(listaFiltradaSemDuplicatas.length / itensPorPagina);
-  if (paginaAtual > totalPaginas) paginaAtual = 1; // segurança
-  grupoAtual = Math.ceil(paginaAtual / botoesPorGrupo);
-
-  // 4) exibe e desenha paginação
   exibirProdutos(listaFiltradaSemDuplicatas);
   criarPaginacao(listaFiltradaSemDuplicatas);
+
+  document.querySelectorAll(".categoria-checkbox").forEach(cb => {
+      const liSub = cb.closest("li");
+      if (!liSub) return;
+      liSub.classList.toggle("ativa", cb.checked);
+    });
+
+    document.querySelectorAll(".categoria").forEach(li => {
+      const checkboxes = li.querySelectorAll(".categoria-checkbox");
+      const titulo = li.querySelector(".categoria-nome");
+
+      if (!checkboxes.length || !titulo) return;
+
+      const todasMarcadas = [...checkboxes].every(cb => cb.checked);
+      titulo.classList.toggle("ativa", todasMarcadas);
+    });
+
 }
 
 // 🔹 Buscar categorias
 function filtrarCategorias() {
-    let termoBuscaCategoria = document.getElementById("search-category").value.toLowerCase();
+  const termo = document
+    .getElementById("search-category")
+    .value
+    .toLowerCase();
 
-    // Verifica todas as categorias existentes
-    let categoriasFiltradas = [...categoriasUnicas].filter(cat => 
-        cat.toLowerCase().includes(termoBuscaCategoria)
-    );
+  const lista = document.getElementById("category-list");
+  const itens = lista.querySelectorAll("li.categoria");
 
-    const listaCategorias = document.getElementById("category-list");
-    listaCategorias.innerHTML = "";
+  itens.forEach(li => {
+    const nomeCategoria = li
+      .querySelector(".categoria-nome")
+      .textContent
+      .toLowerCase();
 
-    if (categoriasFiltradas.length === 0) {
-        listaCategorias.innerHTML = `<p class="mensagem-nenhum-produto">Nenhuma categoria encontrada.</p>`;
-        return;
-    }
-
-    categoriasFiltradas.forEach(cat => {
-        const item = document.createElement("li");
-        
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.value = cat;
-        checkbox.checked = categoriasSelecionadas.has(cat);
-        checkbox.addEventListener("change", () => toggleCategoria(cat, checkbox.checked));
-
-        const label = document.createElement("label");
-        label.textContent = cat;
-        label.addEventListener("click", () => {
-            checkbox.checked = !checkbox.checked;
-            toggleCategoria(cat, checkbox.checked);
-        });
-
-        item.appendChild(checkbox);
-        item.appendChild(label);
-        listaCategorias.appendChild(item);
-    });
+    li.style.display = nomeCategoria.includes(termo)
+      ? ""
+      : "none";
+  });
 }
+
 
 // 🔹 Criar botões de paginação
 function criarPaginacao(lista) {
@@ -410,70 +437,6 @@ document.querySelector(".filter-header").addEventListener("click", () => {
     filterContent.classList.toggle("active");
 });
 
-let listaDeCompras = [];
-
-// 🔹 Função para adicionar um produto à lista de compras
-function adicionarAoCarrinho(referencia) {
-    // Busca o produto na lista de produtos pelo código de referência
-    const produto = produtos.find(p => p.Referencia === referencia);
-    
-    if (!produto) return;
-
-    // Obtém a quantidade informada pelo usuário
-    const quantidadeInput = document.getElementById(`quantidade-${referencia}`);
-    const quantidade = parseInt(quantidadeInput.value);
-
-    if (quantidade <= 0 || isNaN(quantidade)) {
-        alert("Por favor, insira uma quantidade válida.");
-        return;
-    }
-
-    // Verifica se o produto já está no carrinho
-    const produtoNoCarrinho = listaDeCompras.find(item => item.Referencia === referencia);
-
-    if (produtoNoCarrinho) {
-        // Se já existir, apenas aumenta a quantidade
-        produtoNoCarrinho.Quantidade += quantidade;
-    } else {
-        // Se não existir, adiciona ao carrinho
-        listaDeCompras.push({ ...produto, Quantidade: quantidade });
-    }
-
-    atualizarCarrinho();
-}
-
-function exibirProdutos(produtos) {
-  const container = document.getElementById("produtos-container");
-  container.innerHTML = "";
-
-  produtos.forEach((produto) => {
-    const card = document.createElement("div");
-    card.classList.add("card");
-
-    const imagemUrl = encontrarImagem(produto.Referencia, listaImagens);
-    const img = document.createElement("img");
-    img.alt = produto.Referencia;
-
-    if (imagemUrl) {
-      img.src = imagemUrl;
-    } else {
-      img.src = "https://via.placeholder.com/150x100?text=Sem+Imagem";
-      card.style.border = "2px dashed red"; // opcional: destacar cards sem imagem
-    }
-
-    const ref = document.createElement("h3");
-    ref.textContent = produto.Referencia;
-
-    const desc = document.createElement("p");
-    desc.textContent = produto.Descricao;
-
-    card.appendChild(img);
-    card.appendChild(ref);
-    card.appendChild(desc);
-    container.appendChild(card);
-  });
-}
-
 // ✅ Exibir produtos na tela (sem repetir mesma imagem na página)
 function exibirProdutos(lista) {
   const container = document.getElementById("products");
@@ -487,81 +450,51 @@ function exibirProdutos(lista) {
     return;
   }
 
-  produtosPagina.forEach(produto => {
-    const card = document.createElement("div");
-    card.classList.add("card");
+    produtosPagina.forEach(produto => {
+      const card = document.createElement("div");
+      card.classList.add("card");
 
-    const caminhoImagem = encontrarImagem(produto.Referencia);
+      const ref = produto.Referencia;
+      const marcado = !itensExcluidosDoDownload.has(ref);
+      const caminhoImagem = encontrarImagem(ref);
 
-    const precoFormatado = produto.Preco
-  ? produto.Preco.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL"
-    })
-  : "Sob consulta";
-
-    card.innerHTML = `
-      <div class="image-container">
-        <img src="${caminhoImagem}" alt="Imagem do produto"
-          onerror="this.src='${URL_SEM_IMAGEM}'">
-      </div>
-
-      <div class="container">
-        <h5>${produto.Referencia || "Sem Referência"}</h5>
-        <p>${produto.Descricao || "Sem Descrição"}</p>
-
-        <p class="preco">${precoFormatado}</p>
-
-        <h6>Categoria: ${produto.Categoria || "Sem Categoria"}</h6>
-      </div>
-    `;
-
-    container.appendChild(card);
-  });
-}
+      const precoFormatado = produto.Preco
+        ? produto.Preco.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL"
+          })
+        : "Sob consulta";
 
 
-function atualizarCarrinho() {
-    const cartContainer = document.getElementById("cart-items");
-    cartContainer.innerHTML = "";
+      card.innerHTML = `
+        <div class="image-container">
+          <img src="${caminhoImagem}" alt="Imagem do produto"
+            onerror="this.src='${URL_SEM_IMAGEM}'">
+        </div>
 
-    if (listaDeCompras.length === 0) {
-        cartContainer.innerHTML = "<p>Nenhum item na lista.</p>";
-        return;
-    }
+        <div class="container">
+          <h5>${ref || "Sem Referência"}</h5>
+          <p>${produto.Descricao || "Sem Descrição"}</p>
+          <h6>Categoria: ${produto.Categoria || "Sem Categoria"}</h6>
 
-    listaDeCompras.forEach((produto, index) => {
-        const item = document.createElement("li");
+          <p class="preco">${precoFormatado}</p>
 
-        item.innerHTML = `
-            <span>${produto.Referencia}</span>
-            
-            <div>
-                <input type="number" min="1" value="${produto.Quantidade}" 
-                    onchange="atualizarQuantidade(${index}, this.value)">
-                <button onclick="removerDoCarrinho(${index})">❌</button>
-            </div>
-        `;
-        cartContainer.appendChild(item);
+          <div class="download-flag">
+            <label>
+              <input
+                type="checkbox"
+                ${marcado ? "checked" : ""}
+                onchange="toggleDownload('${ref}')"
+              >
+              Incluir no PDF
+            </label>
+          </div>
+        </div>
+      `;
+
+      container.appendChild(card);
     });
-}
 
-// 🔹 Atualiza a quantidade diretamente no carrinho
-function atualizarQuantidade(index, novaQuantidade) {
-    novaQuantidade = parseInt(novaQuantidade);
-
-    if (novaQuantidade > 0) {
-        listaDeCompras[index].Quantidade = novaQuantidade;
-        atualizarCarrinho();
-    } else {
-        removerDoCarrinho(index); // Se a quantidade for 0, remove o item
-    }
-}
-
-// 🔹 Remove um item do carrinho
-function removerDoCarrinho(index) {
-    listaDeCompras.splice(index, 1);
-    atualizarCarrinho();
 }
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -600,143 +533,135 @@ document.addEventListener("DOMContentLoaded", function () {
     }, 1000); // Espera 1 segundo para garantir que o DOM foi carregado
 });
 
-// 🔹 Limpa toda a lista de compras
-document.getElementById("clear-cart").addEventListener("click", () => {
-    if (confirm("Tem certeza que deseja limpar a lista de compras?")) {
-        listaDeCompras = [];
-        atualizarCarrinho();
-    }
-});
-
 function baixarPesquisaEmPDF() {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-    // 🟡 Base para o PDF:
-    // se já temos a lista sem duplicatas (tela atual), reaproveita
-    // se não, cai para obterProdutosFiltrados() como fallback
-    let baseLista = (Array.isArray(listaFiltradaSemDuplicatas) && listaFiltradaSemDuplicatas.length)
-        ? listaFiltradaSemDuplicatas
-        : obterProdutosFiltrados();
+  // 🟡 Base do PDF = o que está na tela
+  let baseLista =
+    (Array.isArray(listaFiltradaSemDuplicatas) && listaFiltradaSemDuplicatas.length)
+      ? listaFiltradaSemDuplicatas
+      : obterProdutosFiltrados();
 
-    if (!baseLista.length) {
-        alert("Nenhum item encontrado.");
-        return;
+  // 🔥 respeita os itens desmarcados no card
+  baseLista = baseLista.filter(
+    p => !itensExcluidosDoDownload.has(p.Referencia)
+  );
+
+  if (!baseLista.length) {
+    alert("Nenhum item selecionado para download.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+  // 🟢 Remove duplicados por imagem no PDF
+  const urlsVistas = new Set();
+  const listaSemDuplicatas = [];
+
+  for (const produto of baseLista) {
+    const urlImg = encontrarImagem(produto.Referencia);
+    if (!urlsVistas.has(urlImg)) {
+      urlsVistas.add(urlImg);
+      listaSemDuplicatas.push(produto);
     }
+  }
 
-    // 🟢 Remove duplicados por imagem também no PDF
-    const urlsVistas = new Set();
-    const listaSemDuplicatas = [];
+  if (!listaSemDuplicatas.length) {
+    alert("Nenhum item encontrado.");
+    return;
+  }
 
-    for (const produto of baseLista) {
-        const urlImg = encontrarImagem(produto.Referencia);
+  // 📝 Cabeçalho
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text("Catálogo de Produtos", 10, 15);
 
-        if (!urlsVistas.has(urlImg)) {
-            urlsVistas.add(urlImg);
-            listaSemDuplicatas.push(produto);
-        }
-    }
+  let x = 10, y = 25;
+  const larguraCard = 62;
+  const alturaCard = 62;
+  const imgMaxLargura = 50;
+  const imgMaxAltura = 30;
+  const espacamentoX = 3;
+  const espacamentoY = 3;
+  const colunas = 3;
 
-    if (!listaSemDuplicatas.length) {
-        alert("Nenhum item encontrado.");
-        return;
-    }
+  const promessas = listaSemDuplicatas.map(produto => {
+    return new Promise(resolve => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve({ produto, img });
+      img.onerror = () => resolve({ produto, img: null });
+      img.src = encontrarImagem(produto.Referencia);
+    });
+  });
 
-    // 📝 Cabeçalho
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(18);
-    doc.text("Catálogo de Produtos", 10, 15);
+  Promise.all(promessas).then(resultados => {
+    resultados.forEach(({ produto, img }, index) => {
 
-    let x = 10, y = 25;
-    const larguraCard = 62;
-    const alturaCard = 62;
-    const imgMaxLargura = 50;
-    const imgMaxAltura = 30;
-    const espacamentoX = 3;
-    const espacamentoY = 3;
-    const colunas = 3;
+      doc.setFillColor(245, 245, 245);
+      doc.roundedRect(x, y, larguraCard, alturaCard, 3, 3, "FD");
 
-    // 🔄 Carrega imagens de todos os produtos (sem duplicatas)
-    const promessas = listaSemDuplicatas.map(produto => {
-        return new Promise(resolve => {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => resolve({ produto, img });
-            img.onerror = () => resolve({ produto, img: null });
-            img.src = encontrarImagem(produto.Referencia);
-        });
+      if (img) {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        canvas.getContext("2d").drawImage(img, 0, 0);
+
+        const base64 = canvas.toDataURL("image/jpeg");
+
+        const escala = Math.min(
+          imgMaxLargura / img.width,
+          imgMaxAltura / img.height
+        );
+
+        doc.addImage(
+          base64,
+          "JPEG",
+          x + (larguraCard - img.width * escala) / 2,
+          y + 5,
+          img.width * escala,
+          img.height * escala
+        );
+      }
+
+      const textoY = y + imgMaxAltura + 12;
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text(produto.Referencia || "Sem Referência", x + 5, textoY);
+
+      doc.setFont("helvetica", "normal");
+      const desc = doc.splitTextToSize(
+        produto.Descricao || "Sem Descrição",
+        larguraCard - 10
+      );
+      doc.text(desc, x + 5, textoY + 5);
+
+      const precoFormatado = produto.Preco
+        ? produto.Preco.toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL"
+          })
+        : "Sob consulta";
+
+      doc.setFont("helvetica", "bold");
+      doc.text(precoFormatado, x + 5, textoY + 12);
+
+      if ((index + 1) % colunas === 0) {
+        x = 10;
+        y += alturaCard + espacamentoY;
+      } else {
+        x += larguraCard + espacamentoX;
+      }
+
+      if (y + alturaCard > 295) {
+        doc.addPage();
+        y = 25;
+        x = 10;
+      }
     });
 
-    Promise.all(promessas).then(resultados => {
-        resultados.forEach(({ produto, img }, index) => {
-            // Card de fundo
-            doc.setFillColor(245, 245, 245);
-            doc.roundedRect(x, y, larguraCard, alturaCard, 3, 3, "FD");
-
-            // Imagem (se carregou)
-            if (img) {
-                const canvas = document.createElement("canvas");
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext("2d");
-                ctx.drawImage(img, 0, 0);
-                const base64 = canvas.toDataURL("image/jpeg");
-
-                const escala = Math.min(
-                    imgMaxLargura / img.width,
-                    imgMaxAltura / img.height
-                );
-                const imgLarguraAjustada = img.width * escala;
-                const imgAlturaAjustada = img.height * escala;
-
-                doc.addImage(
-                    base64,
-                    "JPEG",
-                    x + (larguraCard - imgLarguraAjustada) / 2,
-                    y + 5,
-                    imgLarguraAjustada,
-                    imgAlturaAjustada
-                );
-            }
-
-            const textoY = y + imgMaxAltura + 12;
-            doc.setFontSize(9);
-            doc.setTextColor(0, 0, 0);
-            doc.setFont("helvetica", "bold");
-            doc.text((produto.Referencia || "Sem Referência").toString(), x + 5, textoY);
-
-            doc.setFont("helvetica", "normal");
-            const desc = doc.splitTextToSize(
-                (produto.Descricao || "Sem Descrição").toString(),
-                larguraCard - 10
-            );
-            doc.text(desc, x + 5, textoY + 5);
-
-            doc.setFont("helvetica", "italic");
-            doc.setFontSize(8);
-            doc.setTextColor(100);
-            doc.text(`Cat: ${(produto.CategoriaLimpa || "Sem Categoria")}`, x + 5, textoY + 15);
-
-            // Próximo card (3 colunas)
-            if ((index + 1) % colunas === 0) {
-                x = 10;
-                y += alturaCard + espacamentoY;
-            } else {
-                x += larguraCard + espacamentoX;
-            }
-
-            // Próxima página se precisar
-            if (y + alturaCard > 295) {
-                doc.addPage();
-                y = 25;
-                x = 10;
-            }
-
-            doc.setTextColor(0, 0, 0);
-        });
-
-        doc.save("catalogo_produtos.pdf");
-    });
+    doc.save("catalogo_produtos.pdf");
+  });
 }
 
 console.log("Verificando jsPDF:", window.jspdf);
@@ -750,6 +675,20 @@ function gerarRelatorioSemImagem() {
         Descricao: p.Descricao,
         Categoria: p.Categoria
     })));
+}
+
+function toggleDownload(referencia) {
+  if (itensExcluidosDoDownload.has(referencia)) {
+    itensExcluidosDoDownload.delete(referencia);
+  } else {
+    itensExcluidosDoDownload.add(referencia);
+  }
+
+  localStorage.setItem(
+    "itensExcluidosDoDownload",
+    JSON.stringify([...itensExcluidosDoDownload])
+  );
+  atualizarProdutos();
 }
 
 // Chamar após carregar tudo
